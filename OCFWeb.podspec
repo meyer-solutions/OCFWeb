@@ -20,6 +20,6 @@ OCFWeb is a web application framework written in Objective-C. You can use OCFWeb
   s.requires_arc = true
 	s.dependency 'OCFWebServer', :git => 'https://github.com/Objective-Cloud/OCFWebServer', :commit => '8a5a5597645351c860a23f06ba7b611433cc6b2f'
 	s.dependency 'SOCKit'
-	s.dependency 'GRMustache', '~> 7.3.0'
+	s.dependency 'GRMustache', '7.3.0'
 
 end
