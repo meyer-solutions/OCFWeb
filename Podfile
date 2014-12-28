@@ -1,5 +1,5 @@
 platform :osx, '10.8'
-pod 'OCFWebServer', :git => 'https://github.com/Objective-Cloud/OCFWebServer', :commit => '8a5a5597645351c860a23f06ba7b611433cc6b2f'
+pod 'OCFWebServer', :git => 'https://github.com/meyer-solutions/OCFWebServer', :commit => '40d0103bdf5eda0a8780c71dbecfea08c018c252'
 pod 'SOCKit', '~> 1.1'
 pod 'GRMustache'
 
