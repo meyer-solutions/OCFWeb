@@ -1,4 +1,4 @@
-// The MIT License (MIT)
+    // The MIT License (MIT)
 // Copyright (c) 2013 Objective-Cloud (chris@objective-cloud.com)
 // https://github.com/Objective-Cloud/OCFWeb
 #import <objc/runtime.h>
@@ -28,7 +28,6 @@
 @property (nonatomic, strong) OCFRouter *router;
 @property (nonatomic, copy) NSDictionary *configuration;
 @property (nonatomic, strong) GRMustacheTemplateRepository *templateRepository;
-
 @end
 
 @implementation OCFWebApplication
@@ -143,76 +142,89 @@
 }
 
 - (void)runOnPort:(NSUInteger)port {
-  self.server = [OCFWebServer new];
-  __typeof__(self) __weak weakSelf = self;
-  [self.server addHandlerWithMatchBlock:^OCFWebServerRequest *(NSString *requestMethod, NSURL *requestURL, NSDictionary *requestHeaders, NSString *urlPath, NSDictionary *urlQuery) {
-    Class requestClass = Nil;
-    NSString *contentType = requestHeaders[@"Content-Type"];
+    self.server = [OCFWebServer new];
+    __typeof__(self) __weak weakSelf = self;
     
-    if(contentType != nil) {
-      if([contentType isEqualToString:[OCFWebServerURLEncodedFormRequest mimeType]]) {
-        requestClass = [OCFWebServerURLEncodedFormRequest class];
-      }
-      if([contentType hasPrefix:[OCFWebServerMultiPartFormRequest mimeType]]) {
-        requestClass = [OCFWebServerMultiPartFormRequest class];
-      }
-    }
+    NSString* path = [[NSUserDefaults standardUserDefaults] stringForKey:@"de.meyer-solutions.template.path"];
     
-    if(requestClass == Nil) {
-      requestClass = [OCFWebServerRequest class];
-      NSString *contentLengthAsString = requestHeaders[@"Content-Length"];
-      NSInteger contentLength = [contentLengthAsString integerValue];
-      if(contentLengthAsString != nil && contentLength > 0) {
-        requestClass = [OCFWebServerDataRequest class];
-      }
-    }
+    [self.server addHandlerForBasePath:@"/"
+                             localPath:path
+                         indexFilename:@"index.html"
+                              cacheAge:0];
     
-    OCFWebServerRequest *result = [[requestClass alloc] initWithMethod:requestMethod URL:requestURL headers:requestHeaders path:urlPath query:urlQuery];
-    return result;
-  } processBlock:^void(OCFWebServerRequest *request) {
-    NSString *requestMethod = request.method;
-    
-    // Method Overriding
-    NSDictionary *requestParameters = [request additionalParameters_ocf];
-    if(requestParameters[@"_method"] != nil) {
-      requestMethod = requestParameters[@"_method"];
-    }
-    
-    // Dispatch the request
-    OCFRoute *route = [weakSelf.router routeForRequestWithMethod:requestMethod requestPath:request.path];
-    
-    if(route == nil) {
-      NSLog(@"[WebApplication] No route found for %@ %@.", request.method, request.path);
-      OCFResponse *response = nil;
-      if(weakSelf.delegate != nil && [weakSelf.delegate respondsToSelector:@selector(application:asynchronousResponseForRequestWithNoAssociatedHandler:)]) {
-        OCFRequest *webRequest = [[OCFRequest alloc] initWithWebServerRequest:request parameters:nil];
-        webRequest.method = requestMethod;
+    [self.server addHandlerWithMatchBlock:^OCFWebServerRequest *(NSString *requestMethod, NSURL *requestURL, NSDictionary *requestHeaders, NSString *urlPath, NSDictionary *urlQuery) {
+        Class requestClass = Nil;
+        NSString *contentType = requestHeaders[@"Content-Type"];
+        
+        if ([urlPath rangeOfString:@"."].location == NSNotFound) {
+            if(contentType != nil) {
+                if([contentType isEqualToString:[OCFWebServerURLEncodedFormRequest mimeType]]) {
+                    requestClass = [OCFWebServerURLEncodedFormRequest class];
+                }
+                if([contentType hasPrefix:[OCFWebServerMultiPartFormRequest mimeType]]) {
+                    requestClass = [OCFWebServerMultiPartFormRequest class];
+                }
+            }
+            
+            if(requestClass == Nil) {
+                requestClass = [OCFWebServerRequest class];
+                NSString *contentLengthAsString = requestHeaders[@"Content-Length"];
+                NSInteger contentLength = [contentLengthAsString integerValue];
+                if(contentLengthAsString != nil && contentLength > 0) {
+                    requestClass = [OCFWebServerDataRequest class];
+                }
+            }
+            
+            OCFWebServerRequest *result = [[requestClass alloc] initWithMethod:requestMethod URL:requestURL headers:requestHeaders path:urlPath query:urlQuery];
+            return result;
+        }
+        
+        return nil;
+        
+    } processBlock:^void(OCFWebServerRequest *request) {
+        NSString *requestMethod = request.method;
+        
+        // Method Overriding
+        NSDictionary *requestParameters = [request additionalParameters_ocf];
+        if(requestParameters[@"_method"] != nil) {
+            requestMethod = requestParameters[@"_method"];
+        }
+        
+        // Dispatch the request
+        OCFRoute *route = [weakSelf.router routeForRequestWithMethod:requestMethod requestPath:request.path];
+        
+        if(route == nil) {
+            NSLog(@"[WebApplication] No route found for %@ %@.", request.method, request.path);
+            OCFResponse *response = nil;
+            if(weakSelf.delegate != nil && [weakSelf.delegate respondsToSelector:@selector(application:asynchronousResponseForRequestWithNoAssociatedHandler:)]) {
+                OCFRequest *webRequest = [[OCFRequest alloc] initWithWebServerRequest:request parameters:nil];
+                webRequest.method = requestMethod;
+                [webRequest setRespondWith:^(id response) {
+                    if(response == nil) {
+                        response = [[OCFResponse alloc] initWithStatus:404 headers:nil body:nil];
+                    }
+                    [weakSelf _handleResponse:response withOriginalRequest:request];
+                }];
+                [weakSelf.delegate application:weakSelf asynchronousResponseForRequestWithNoAssociatedHandler:webRequest];
+            } else {
+                // The delegate did not return anything useful so we have to generate a 404 response
+                response = [[OCFResponse alloc] initWithStatus:404 headers:nil body:nil];
+                [weakSelf _handleResponse:response withOriginalRequest:request];
+                return;
+            }
+            return;
+        }
+        
+        NSDictionary *parameters = [weakSelf parametersFromRequest:request withRoute:route];
+        
+        OCFRequest *webRequest = [[OCFRequest alloc] initWithWebServerRequest:request parameters:parameters];
         [webRequest setRespondWith:^(id response) {
-          if(response == nil) {
-            response = [[OCFResponse alloc] initWithStatus:404 headers:nil body:nil];
-          }
-          [weakSelf _handleResponse:response withOriginalRequest:request];
+            [weakSelf _handleResponse:response withOriginalRequest:request];
         }];
-        [weakSelf.delegate application:weakSelf asynchronousResponseForRequestWithNoAssociatedHandler:webRequest];
-      } else {
-        // The delegate did not return anything useful so we have to generate a 404 response
-        response = [[OCFResponse alloc] initWithStatus:404 headers:nil body:nil];
-        [weakSelf _handleResponse:response withOriginalRequest:request];
-        return;
-      }
-      return;
-    }
-    
-    NSDictionary *parameters = [weakSelf parametersFromRequest:request withRoute:route];
-    
-    OCFRequest *webRequest = [[OCFRequest alloc] initWithWebServerRequest:request parameters:parameters];
-    [webRequest setRespondWith:^(id response) {
-      [weakSelf _handleResponse:response withOriginalRequest:request];
+        
+        route.requestHandler(webRequest);
     }];
-    
-    route.requestHandler(webRequest);
-  }];
-  [self.server startWithPort:port bonjourName:nil];
+    [self.server startWithPort:port bonjourName:nil];
 }
 
 - (void)stop {

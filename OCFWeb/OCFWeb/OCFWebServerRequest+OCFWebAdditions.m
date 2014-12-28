@@ -21,6 +21,11 @@
 
 @implementation OCFWebServerDataRequest (OCFAdditions)
 
+#pragma mark - Additional Parameters
+- (NSDictionary *)additionalParameters_ocf {
+    return self.arguments;
+}
+
 #pragma mark - Convenience
 - (NSData *)data_ocf {
     return self.data;

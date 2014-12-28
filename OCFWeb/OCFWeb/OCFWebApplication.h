@@ -5,6 +5,7 @@
 #import <Foundation/Foundation.h>
 
 @class OCFRequest;
+@class GRMustacheTemplateRepository;
 @protocol OCFWebApplicationDelegate;
 
 typedef void(^OCFWebApplicationRequestHandler)(OCFRequest *request);
@@ -29,6 +30,8 @@ typedef void(^OCFWebApplicationRequestHandler)(OCFRequest *request);
 - (void)run;
 - (void)runOnPort:(NSUInteger)port;
 - (void)stop;
+
+- (void)setTemplateRepository:(GRMustacheTemplateRepository*)repo;
 
 @end
 
